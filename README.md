@@ -126,7 +126,7 @@ mobilitydb=# SELECT * from citus_get_active_worker_nodes();
  10.48.3.7  |      5432
 (3 rows)
 ```
-### Horizontal Scaling Guide
+### Horizontal Scaling Command
 The command below initiates a resizing operation of the current cluster by providing the appropriate parameters. 
 ```bash       
 # Make sure to export your environment variables, including POSTGRES_USER,
