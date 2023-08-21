@@ -1,7 +1,7 @@
 ## Scaling Moving Object Database: MobilityDB and Google Kubernetes Engine    
 This repository defines an API that enables the scaling of a moving object database within Google Kubernetes Engine (GKE) on Google Cloud Platform (GCP). The PostgreSQL server serves as the relational database management system (RDBMS), supplemented by the MobilityDB extension that efficiently handles the manipulation of moving object data. To learn more about the MobilityDB extension for PostgreSQL, you can refer to the implementation and documentation available at this [link](https://github.com/MobilityDB).
 Furthermore, the Citus data extension for PostgreSQL is incorporated to facilitate table partitioning and the efficient distribution of SQL queries across a group of PostgreSQL nodes. To delve into details about the Citus extension, you can explore the complete implementation provided [here](https://github.com/citusdata/citus).
-# Get Started
+## Get Started
 In this section, we will outline the various steps required to scale a moving object database in GCP. We'll provide a comprehensive guide that details the necessary command-line instructions for each phase. Our process begins with the creation of a GKE cluster, wherein we allocate specific GCP resources. Subsequently, we deploy a PostgreSQL server, complete with the MobilityDB and Citus extensions. Following this, we move forward to initializing the Citus cluster, a step that involves establishing connections between Citus nodes to enable the partitioning of large tables and the distribution of partitions and queries across multiple nodes within the cluster.
 The following figure presents an architectural overview of the Citus cluster within the GKE product.
 
@@ -15,7 +15,7 @@ The figure below illustrates the outcome of the scale-out operation initiated by
 In the upcoming section, we will provide a tutorial demonstrating the process of deploying a distributed GKE cluster to effectively manage and scale a moving object database analyzed using the MobilityDB extension for PostgreSQL. We will present the required commands to achieve this. 
 ## Tutorial
 In this tutorial, we will create a workflow that outlines the necessary steps to deploy a GKE cluster, aiming to establish a distributed environment for a PostgreSQL database.
-## GKE Cluster Initialization
+### GKE Cluster Initialization
 First and foremost, you need to possess a Google account to link it within the GCP console. If you already have an existing Google account, you can associate it with GCP by signing in here[](https://console.cloud.google.com).
 Once you have a GCP account, it's necessary to acquire credits to utilize GCP services through the billing account. For further information about GCP credits and billing accounts, please refer to this link[](https://console.cloud.google.com/billing).
 Next, the subsequent steps detail the process of setting up a GKE cluster.
@@ -48,7 +48,7 @@ gcloud container clusters describe mobilitydb-cluster-1
 # View your cluster nodes information via the kubectl command
 kubectl get node -o wide
 ```
-## Citus Cluster Initialization
+### Citus Cluster Initialization
 Once the GKE cluster is established, you can deploy our cloud-native solution to initialize the Citus cluster. To accomplish this, you must first perform the following operations.
 - Clone MobilityDB-GCP solution.
 ```bash       
@@ -126,7 +126,7 @@ mobilitydb=# SELECT * from citus_get_active_worker_nodes();
  10.48.3.7  |      5432
 (3 rows)
 ```
-## Horizontal Scaling Guide
+### Horizontal Scaling Guide
 The command below initiates a resizing operation of the current cluster by providing the appropriate parameters. 
 ```bash       
 # Make sure to export your environment variables, including POSTGRES_USER,
