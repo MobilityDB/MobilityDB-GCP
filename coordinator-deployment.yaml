@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pv-claim-coordinator
+  labels:
+    app: citus-coordinator
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard-rwo
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: citus-coordinator
+  labels:
+    app: citus-coordinator
+spec:
+  selector:
+    app: citus-coordinator
+  type: NodePort
+  ports:
+    - port: 5432
+      nodePort: 30001
+
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: citus-coordinator
+  labels:
+    app: citus-coordinator
+spec:
+  serviceName: citus-coordinator
+  replicas: 1
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app: citus-coordinator
+  template:
+    metadata:
+      labels:
+        app: citus-coordinator
+    spec:
+      terminationGracePeriodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    #- citus-workers
+                    - citus-coordinator
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: postgresdb
+        #image: bouzouidja/mobilitydb-cloud:latest
+        image:  europe-west1-docker.pkg.dev/distributed-postgresql-82971/sidahmed-gcp-registry/mobilitydb-cloud
+        imagePullPolicy: "IfNotPresent"
+        args:
+            - -c
+            - max_locks_per_transaction=128
+            - -c
+            - shared_preload_libraries=citus, postgis-3.so, pg_stat_statements
+            - -c
+            - wal_level=logical
+            - -c
+            - listen_addresses=*
+
+        ports:
+        - containerPort: 5432
+        #resources:
+        #  limits:
+        #    cpu: 3500m
+        #    memory: 10G
+        #  requests:
+        #    cpu: 3000m
+        #    memory: 8G
+        lifecycle:
+            postStart:
+              exec:
+                command: 
+                - /bin/sh
+                - -c
+                - |
+                  sleep 5
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB --command="CREATE EXTENSION IF NOT EXISTS citus; CREATE EXTENSION IF NOT EXISTS hstore; CREATE EXTENSION IF NOT EXISTS mobilitydb cascade; CREATE EXTENSION IF NOT EXISTS pgrouting;"
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB --command="CREATE TABLE IF NOT EXISTS pod_information (pod_ip VARCHAR(20),nodeid INTEGER,nodeport INTEGER, pod_hostname VARCHAR(40));"
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB --command="SELECT citus_set_coordinator_host('$POD_IP', 5432);"
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB --command="INSERT INTO pod_information(pod_ip, nodeid, nodeport, pod_hostname ) SELECT nodename, nodeid, nodeport, '${HOSTNAME}' FROM pg_dist_node WHERE nodename = '$POD_IP' and NOT EXISTS (SELECT pod_ip FROM pod_information WHERE pod_ip = '$POD_IP') and NOT EXISTS (SELECT pod_hostname FROM pod_information WHERE pod_hostname = '${HOSTNAME}');" 
+                                   
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_DB
+              
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgredb
+             
+      volumes:
+        - name: postgredb
+          persistentVolumeClaim:
+            claimName: postgres-pv-claim-coordinator
